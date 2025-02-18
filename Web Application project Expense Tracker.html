@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Expense Tracker with Yearly Summary</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background-color: #f9f9f9;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        h1, h2 {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        form {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+        }
+
+        input[type="text"], input[type="number"], input[type="date"] {
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            outline: none;
+            flex: 1;
+        }
+
+        button {
+            padding: 10px 20px;
+            background-color: #4caf50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #45a049;
+        }
+
+        .summary-section {
+            margin-top: 20px;
+        }
+
+        .download-btn {
+            padding: 10px 20px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .download-btn:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Expense Tracker</h1>
+        <form id="expense-form">
+            <input type="text" id="expense-name" placeholder="Expense Name" required>
+            <input type="number" id="expense-amount" placeholder="Amount" required>
+            <input type="date" id="expense-date" required>
+            <button type="submit">Add Expense</button>
+        </form>
+        <div class="summary-section">
+            <h2>Yearly Summary</h2>
+            <input type="number" id="user-year" placeholder="Enter Year (e.g., 2023)" required>
+            <button class="download-btn" id="download-summary">Download Summary (PDF)</button>
+        </div>
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            const expenseForm = document.getElementById("expense-form");
+            const downloadSummaryButton = document.getElementById("download-summary");
+            const userYearInput = document.getElementById("user-year");
+
+            let expenses = JSON.parse(localStorage.getItem("expenses")) || [];
+
+            const addExpense = (event) => {
+                event.preventDefault();
+                const expenseName = document.getElementById("expense-name").value.trim();
+                const expenseAmount = parseFloat(document.getElementById("expense-amount").value);
+                const expenseDate = document.getElementById("expense-date").value;
+
+                if (!expenseName || isNaN(expenseAmount) || expenseAmount <= 0 || !expenseDate) {
+                    alert("Please enter valid expense details.");
+                    return;
+                }
+
+                expenses.push({ 
+                    name: expenseName, 
+                    amount: expenseAmount,
+                    date: expenseDate 
+                });
+
+                localStorage.setItem("expenses", JSON.stringify(expenses));
+                expenseForm.reset();
+            };
+
+            const downloadYearlySummary = () => {
+                const userYear = parseInt(userYearInput.value, 10);
+
+                if (isNaN(userYear) || userYear <= 0) {
+                    alert("Please enter a valid year.");
+                    return;
+                }
+
+                const filteredExpenses = expenses.filter(expense => {
+                    const expenseYear = new Date(expense.date).getFullYear();
+                    return expenseYear === userYear;
+                });
+
+                if (filteredExpenses.length === 0) {
+                    alert(`No expenses found for the year ${userYear}.`);
+                    return;
+                }
+
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF();
+
+                // Header
+                doc.setFontSize(16);
+                doc.text(`Expense Summary for the Year ${userYear}`, 10, 10);
+
+                // Table Content
+                const tableData = filteredExpenses.map(expense => {
+                    const expenseDate = new Date(expense.date);
+                    const formattedDate = expenseDate.toLocaleDateString();
+                    const month = expenseDate.toLocaleString('default', { month: 'long' });
+
+                    return [
+                        formattedDate,
+                        month,
+                        expense.name,
+                        `$${expense.amount.toFixed(2)}`
+                    ];
+                });
+
+                doc.autoTable({
+                    head: [['Date', 'Month', 'Expense Name', 'Amount']],
+                    body: tableData,
+                    startY: 20,
+                    styles: {
+                        head: { fillColor: [22, 160, 133] },
+                        body: { fontSize: 10 },
+                        alternateRowStyles: { fillColor: [240, 240, 240] }
+                    },
+                });
+
+                // Save PDF
+                doc.save(`Expense-Summary-${userYear}.pdf`);
+            };
+
+            expenseForm.addEventListener("submit", addExpense);
+            downloadSummaryButton.addEventListener("click", downloadYearlySummary);
+        });
+    </script>
+</body>
+</html>
